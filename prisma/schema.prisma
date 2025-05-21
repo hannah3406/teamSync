@@ -1,15 +1,48 @@
 // prisma/schema.prisma
-datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL")
-}
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
 }
 
-// 기본 모델 정의 - Next-Auth가 필요로 하는 모델
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
 
+// 사용자 모델
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("user") // "user" 또는 "admin"
+  bio           String?   // 사용자 소개
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 계정(Auth.js에서 사용)
+  accounts      Account[]
+  sessions      Session[]
+
+  // 사용자가 소유한 항목들
+  ownedProjects Project[]       @relation("ProjectOwner")
+  tasks         Task[]          @relation("TaskAssignee")
+  documents     Document[]      @relation("DocumentOwner")
+  teams         TeamMember[]    @relation("TeamMemberships")
+  ownedTeams    Team[]          @relation("TeamOwner")
+  activities    UserActivity[]  @relation("UserActivities")
+  comments      Comment[]       @relation("UserComments")
+  notifications Notification[]  @relation("UserNotifications")
+
+  projectMemberships ProjectMember[] @relation("UserProjectMemberships")
+  documentVersions DocumentVersion[] @relation("UserDocumentVersions")
+}
+
+// 계정 모델 (Auth.js에서 사용)
 model Account {
   id                String  @id @default(auto()) @map("_id") @db.ObjectId
   userId            String  @db.ObjectId
@@ -29,6 +62,7 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
+// 세션 모델 (Auth.js에서 사용)
 model Session {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   sessionToken String   @unique
@@ -37,22 +71,7 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model User {
-  id             String    @id @default(auto()) @map("_id") @db.ObjectId
-  name           String?
-  email          String?   @unique
-  emailVerified  DateTime?
-  password       String?
-  image          String?
-  role           String?   @default("user") // 사용자 역할 (admin, user 등)
-  accounts       Account[]
-  sessions       Session[]
-  tasks          Task[]    // 사용자의 태스크
-  projects       Project[] // 사용자의 프로젝트
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-}
-
+// 인증 토큰 모델 (이메일 확인, 비밀번호 재설정 등에 사용)
 model VerificationToken {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
   identifier String
@@ -62,32 +81,228 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// TeamSync 앱의 모델 정의
-
+// 프로젝트 모델
 model Project {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   description String?
-  ownerId     String   @db.ObjectId
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  tasks       Task[]
+  status      String   @default("active") // "active", "completed", "archived"
+  startDate   DateTime?
+  endDate     DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // 프로젝트 소유자
+  ownerId     String   @db.ObjectId
+  owner       User     @relation("ProjectOwner", fields: [ownerId], references: [id])
+  
+  // 프로젝트에 속한 항목들
+  tasks       Task[]   @relation("ProjectTasks")
+  documents   Document[] @relation("ProjectDocuments")
+  members     ProjectMember[] @relation("ProjectMembers")
+  labels      Label[]  @relation("ProjectLabels")
+  milestones  Milestone[] @relation("ProjectMilestones")
+  teamId      String?  @db.ObjectId
+  team        Team?    @relation("TeamProjects", fields: [teamId], references: [id])
 }
 
+// 프로젝트 멤버 모델 (프로젝트-사용자 다대다 관계)
+model ProjectMember {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  role       String   @default("member") // "owner", "admin", "member"
+  joinedAt   DateTime @default(now())
+  
+  // 관계
+  projectId  String   @db.ObjectId
+  project    Project  @relation("ProjectMembers", fields: [projectId], references: [id], onDelete: Cascade)
+  userId     String   @db.ObjectId
+  user   User   @relation("UserProjectMemberships", fields: [userId], references: [id])
+  
+
+  @@unique([projectId, userId])
+}
+
+// 태스크 모델
 model Task {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
-  status      String   @default("todo") // todo, in-progress, done
-  priority    String   @default("medium") // low, medium, high
-  assigneeId  String?  @db.ObjectId
-  assignee    User?    @relation(fields: [assigneeId], references: [id])
-  projectId   String?  @db.ObjectId
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status      String   @default("todo") // "todo", "in_progress", "review", "done"
+  priority    String   @default("medium") // "low", "medium", "high", "urgent"
   dueDate     DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  position    Int      @default(0) // 드래그 앤 드롭 위치를 위한 필드
+  
+  // 관계
+  assigneeId  String?  @db.ObjectId
+  assignee    User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  projectId   String   @db.ObjectId
+  project     Project  @relation("ProjectTasks", fields: [projectId], references: [id], onDelete: Cascade)
+  parentId    String?  @db.ObjectId // 서브태스크를 위한 필드
+  parent      Task?    @relation("SubTasks", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subTasks    Task[]   @relation("SubTasks")
+  comments    Comment[] @relation("TaskComments")
+  labels      TaskLabel[] @relation("TaskLabels")
+  milestoneId String?  @db.ObjectId
+  milestone   Milestone? @relation("MilestoneTasks", fields: [milestoneId], references: [id])
 }
 
-// 추가 모델 (회의록, 문서 등은 필요에 따라 추가)
+// 라벨 모델
+model Label {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  color     String
+  createdAt DateTime @default(now())
+  
+  // 관계
+  projectId String   @db.ObjectId
+  project   Project  @relation("ProjectLabels", fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     TaskLabel[] @relation("LabelTasks")
+}
+
+// 태스크-라벨 다대다 관계
+model TaskLabel {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @default(now())
+  
+  // 관계
+  taskId    String   @db.ObjectId
+  task      Task     @relation("TaskLabels", fields: [taskId], references: [id], onDelete: Cascade)
+  labelId   String   @db.ObjectId
+  label     Label    @relation("LabelTasks", fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, labelId])
+}
+
+// 마일스톤 모델
+model Milestone {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  startDate   DateTime?
+  dueDate     DateTime?
+  status      String   @default("active") // "active", "completed"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // 관계
+  projectId   String   @db.ObjectId
+  project     Project  @relation("ProjectMilestones", fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]   @relation("MilestoneTasks")
+}
+
+// 문서 모델
+model Document {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  content   String?  @db.String // 문서 내용 (Yjs 문서 데이터 저장)
+  type      String   @default("note") // "note", "wiki", "meeting", "specs"
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // 관계
+  ownerId   String   @db.ObjectId
+  owner     User     @relation("DocumentOwner", fields: [ownerId], references: [id])
+  projectId String?  @db.ObjectId
+  project   Project? @relation("ProjectDocuments", fields: [projectId], references: [id], onDelete: SetNull)
+  parentId  String?  @db.ObjectId // 폴더 구조를 위한 필드
+  parent    Document? @relation("SubDocuments", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  Document[] @relation("SubDocuments")
+  versions  DocumentVersion[] @relation("DocumentVersions")
+  comments  Comment[] @relation("DocumentComments")
+}
+
+// 문서 버전 모델
+model DocumentVersion {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  version    Int
+  content    String   @db.String
+  createdAt  DateTime @default(now())
+  
+  // 관계
+  documentId String   @db.ObjectId
+  document   Document @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  authorId   String   @db.ObjectId
+  author     User     @relation("UserDocumentVersions", fields: [authorId], references: [id])
+}
+
+// 댓글 모델
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // 관계
+  authorId  String   @db.ObjectId
+  author    User     @relation("UserComments", fields: [authorId], references: [id])
+  taskId    String?  @db.ObjectId
+  task      Task?    @relation("TaskComments", fields: [taskId], references: [id], onDelete: Cascade)
+  documentId String? @db.ObjectId
+  document  Document? @relation("DocumentComments", fields: [documentId], references: [id], onDelete: Cascade)
+  parentId  String?  @db.ObjectId // 댓글 스레드를 위한 필드
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies   Comment[] @relation("CommentReplies")
+}
+
+// 팀 모델
+model Team {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  avatar      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // 관계
+  ownerId     String   @db.ObjectId
+  owner       User     @relation("TeamOwner", fields: [ownerId], references: [id])
+  members     TeamMember[] @relation("TeamMembers")
+  projects    Project[] @relation("TeamProjects")
+}
+
+// 팀 멤버 모델 (팀-사용자 다대다 관계)
+model TeamMember {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  role      String   @default("member") // "owner", "admin", "member"
+  joinedAt  DateTime @default(now())
+  
+  // 관계
+  teamId    String   @db.ObjectId
+  team      Team     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  user      User     @relation("TeamMemberships", fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+}
+
+// 사용자 활동 모델
+model UserActivity {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  action      String   // "created", "updated", "commented", "completed", etc.
+  entityType  String   // "task", "project", "document", etc.
+  entityId    String   // 관련 엔티티의 ID
+  details     Json?    // 추가 세부 정보
+  createdAt   DateTime @default(now())
+  
+  // 관계
+  userId      String   @db.ObjectId
+  user        User     @relation("UserActivities", fields: [userId], references: [id])
+}
+
+// 알림 모델
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  type        String   // "mention", "assignment", "comment", "due_date", etc.
+  message     String
+  isRead      Boolean  @default(false)
+  entityType  String?  // "task", "project", "document", etc.
+  entityId    String?  // 관련 엔티티의 ID
+  createdAt   DateTime @default(now())
+  
+  // 관계
+  userId      String   @db.ObjectId
+  user        User     @relation("UserNotifications", fields: [userId], references: [id])
+}
