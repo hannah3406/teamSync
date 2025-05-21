@@ -1,14 +1,43 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth'; // 현재 인증된 사용자 정보를 가져오기 위해 추가
 
 export async function GET() {
   try {
+    const session = await auth();
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+
+    // 사용자가 소유하거나 참여 중인 프로젝트만 조회
     const projects = await prisma.project.findMany({
+      where: {
+        OR: [
+          { ownerId: userId }, // 소유한 프로젝트
+          {
+            members: {
+              some: {
+                userId: userId,
+              },
+            },
+          }, // 멤버로 참여 중인 프로젝트
+        ],
+      },
       include: {
-        tasks: true,
+        team: true,
+        _count: {
+          select: {
+            tasks: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
       },
     });
+
     return NextResponse.json(projects);
   } catch (error) {
     console.error('Error fetching projects:', error);
@@ -19,7 +48,11 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description } = body;
+    const { name, description, teamId } = body;
+
+    if (!name) {
+      return NextResponse.json({ error: '프로젝트 이름을 입력해주세요.' }, { status: 400 });
+    }
 
     // 현재 인증된 사용자 정보를 가져옵니다
     const session = await auth();
@@ -31,12 +64,20 @@ export async function POST(request: Request) {
 
     const userId = session.user.id;
 
-    // Project 생성 시 workspaceId 대신 ownerId 필드를 사용합니다
+    // 프로젝트 생성
     const project = await prisma.project.create({
       data: {
         name,
         description,
-        ownerId: userId, // workspaceId 대신 ownerId를 사용
+        ownerId: userId,
+        teamId: teamId || undefined,
+        // 프로젝트 생성자를 멤버로 자동 추가
+        members: {
+          create: {
+            userId: userId,
+            role: 'owner',
+          },
+        },
       },
     });
 
