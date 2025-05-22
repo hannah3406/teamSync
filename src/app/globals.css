@@ -76,3 +76,14 @@
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 }
+.rdp {
+  --rdp-cell-size: 40px; /* 날짜 셀 크기 */
+  --rdp-caption-font-size: 14px; /* 캡션 폰트 크기 */
+  --rdp-accent-color: hsl(var(--primary)); /* 강조 색상 */
+  --rdp-background-color: hsl(var(--primary)); /* 배경 색상 */
+  --rdp-accent-color-dark: hsl(var(--primary)); /* 어두운 배경에서의 강조 색상 */
+  --rdp-background-color-dark: hsl(var(--primary)); /* 어두운 배경에서의 배경 색상 */
+  --rdp-outline: 2px solid hsl(var(--ring)); /* 포커스 아웃라인 */
+  --rdp-outline-offset: 2px; /* 아웃라인 오프셋 */
+  margin: 0;
+}
