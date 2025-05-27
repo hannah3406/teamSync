@@ -65,6 +65,7 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
 
   // 프로젝트가 없는지 확인
   const hasProjects = projects.length > 0;
+
   const handleOpenDialog = () => {
     if (hasProjects) {
       setOpen(true);
@@ -78,6 +79,7 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
   const navigateToCreateProject = () => {
     router.push('/dashboard/projects');
   };
+
   // 프로젝트가 변경되면 해당 프로젝트의 라벨로 필터링
   const handleProjectChange = (value: string) => {
     setProjectId(value);
@@ -103,6 +105,22 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
   // 선택된 라벨 제거
   const removeLabel = (labelId: string) => {
     setSelectedLabels(selectedLabels.filter((id) => id !== labelId));
+  };
+
+  // 날짜 선택 핸들러 수정 - 이벤트 버블링 방지
+  const handleDateSelect = (date: Date | undefined) => {
+    setDueDate(date);
+    setCalendarOpen(false); // 날짜 선택 후 달력 닫기
+  };
+
+  // Popover 내부 클릭 시 이벤트 버블링 방지
+  const handlePopoverClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  // 날짜 제거 핸들러
+  const handleDateClear = () => {
+    setDueDate(undefined);
   };
 
   // 폼 제출
@@ -168,7 +186,6 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
     setSelectedLabels([]);
     setProjectLabels([]);
     setError(null);
-    router.refresh();
   };
 
   return (
@@ -191,225 +208,222 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
           {children}
         </DialogTrigger>
 
-        {/* 기존 태스크 생성 폼 내용 */}
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogContent className="sm:max-w-[550px]">
-            <form onSubmit={handleSubmit}>
-              <DialogHeader>
-                <DialogTitle>새 태스크 생성</DialogTitle>
-                <DialogDescription>
-                  새 태스크의 정보를 입력하세요. 생성 후에도 모든 정보를 수정할 수 있습니다.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                {/* 태스크 제목 */}
-                <div className="grid gap-2">
-                  <Label htmlFor="title" className="required">
-                    태스크 제목
-                  </Label>
-                  <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="태스크 제목을 입력하세요"
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
+        <DialogContent className="sm:max-w-[550px]" onPointerDownOutside={(e) => e.preventDefault()}>
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>새 태스크 생성</DialogTitle>
+              <DialogDescription>
+                새 태스크의 정보를 입력하세요. 생성 후에도 모든 정보를 수정할 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {/* 태스크 제목 */}
+              <div className="grid gap-2">
+                <Label htmlFor="title" className="required">
+                  태스크 제목
+                </Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="태스크 제목을 입력하세요"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
 
-                {/* 태스크 설명 */}
-                <div className="grid gap-2">
-                  <Label htmlFor="description">설명 (선택)</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="태스크에 대한 설명을 입력하세요"
-                    disabled={isLoading}
-                    className="resize-none"
-                    rows={3}
-                  />
-                </div>
+              {/* 태스크 설명 */}
+              <div className="grid gap-2">
+                <Label htmlFor="description">설명 (선택)</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="태스크에 대한 설명을 입력하세요"
+                  disabled={isLoading}
+                  className="resize-none"
+                  rows={3}
+                />
+              </div>
 
-                {/* 프로젝트 선택 */}
+              {/* 프로젝트 선택 */}
+              <div className="grid gap-2">
+                <Label htmlFor="project" className="required">
+                  프로젝트
+                </Label>
+                <Select value={projectId} onValueChange={handleProjectChange} disabled={isLoading} required>
+                  <SelectTrigger id="project">
+                    <SelectValue placeholder="프로젝트 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 상태 및 우선순위 선택 */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="project" className="required">
-                    프로젝트
-                  </Label>
-                  <Select value={projectId} onValueChange={handleProjectChange} disabled={isLoading} required>
-                    <SelectTrigger id="project">
-                      <SelectValue placeholder="프로젝트 선택" />
+                  <Label htmlFor="status">상태</Label>
+                  <Select value={status} onValueChange={setStatus} disabled={isLoading}>
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="상태 선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="todo">할 일</SelectItem>
+                      <SelectItem value="in_progress">진행 중</SelectItem>
+                      <SelectItem value="done">완료</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* 상태 및 우선순위 선택 */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="status">상태</Label>
-                    <Select value={status} onValueChange={setStatus} disabled={isLoading}>
-                      <SelectTrigger id="status">
-                        <SelectValue placeholder="상태 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todo">할 일</SelectItem>
-                        <SelectItem value="in_progress">진행 중</SelectItem>
-                        <SelectItem value="done">완료</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="priority">우선순위</Label>
-                    <Select value={priority} onValueChange={setPriority} disabled={isLoading}>
-                      <SelectTrigger id="priority">
-                        <SelectValue placeholder="우선순위 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">낮음</SelectItem>
-                        <SelectItem value="medium">중간</SelectItem>
-                        <SelectItem value="high">높음</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* 마감일 선택 */}
                 <div className="grid gap-2">
-                  <Label htmlFor="dueDate">마감일 (선택)</Label>
-                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="dueDate"
-                        variant="outline"
-                        className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !dueDate && 'text-muted-foreground'
-                        )}
-                        disabled={isLoading}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dueDate ? format(dueDate, 'PPP', { locale: ko }) : '마감일 선택'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dueDate}
-                        onSelect={(date) => {
-                          console.log('선택된 날짜:', date); // 디버깅용
-                          setDueDate(date);
-                          setCalendarOpen(false);
-                        }}
-                        initialFocus
-                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  {dueDate && (
+                  <Label htmlFor="priority">우선순위</Label>
+                  <Select value={priority} onValueChange={setPriority} disabled={isLoading}>
+                    <SelectTrigger id="priority">
+                      <SelectValue placeholder="우선순위 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">낮음</SelectItem>
+                      <SelectItem value="medium">중간</SelectItem>
+                      <SelectItem value="high">높음</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* 마감일 선택 - 수정된 부분 */}
+              <div className="grid gap-2">
+                <Label htmlFor="dueDate">마감일 (선택)</Label>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-1 h-auto p-0 text-xs text-muted-foreground"
-                      onClick={() => setDueDate(undefined)}
+                      id="dueDate"
+                      variant="outline"
+                      className={cn('w-full justify-start text-left font-normal', !dueDate && 'text-muted-foreground')}
                       disabled={isLoading}
                     >
-                      <X className="mr-1 h-3 w-3" />
-                      마감일 제거
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dueDate ? format(dueDate, 'PPP', { locale: ko }) : '마감일 선택'}
                     </Button>
-                  )}
-                </div>
-
-                {/* 라벨 선택 */}
-                {projectId && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="labels">라벨 (선택)</Label>
-                    <Popover open={labelsOpen} onOpenChange={setLabelsOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          id="labels"
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                          disabled={isLoading || projectLabels.length === 0}
-                        >
-                          라벨 선택
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="라벨 검색..." />
-                          <CommandEmpty>라벨을 찾을 수 없습니다.</CommandEmpty>
-                          <CommandGroup>
-                            {projectLabels.map((label) => (
-                              <CommandItem key={label.id} value={label.name} onSelect={() => toggleLabel(label.id)}>
-                                <div className="flex items-center gap-2 w-full">
-                                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: label.color }} />
-                                  <span>{label.name}</span>
-                                  {selectedLabels.includes(label.id) && <Check className="ml-auto h-4 w-4" />}
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-
-                    {/* 선택된 라벨 표시 */}
-                    {selectedLabels.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {selectedLabels.map((labelId) => {
-                          const label = projectLabels.find((l) => l.id === labelId);
-                          if (!label) return null;
-                          return (
-                            <Badge
-                              key={label.id}
-                              className="flex items-center gap-1 px-2 py-1"
-                              style={{
-                                backgroundColor: `${label.color}20`,
-                                borderColor: label.color,
-                                color: label.color,
-                              }}
-                              variant="outline"
-                            >
-                              {label.name}
-                              <X className="h-3 w-3 cursor-pointer" onClick={() => removeLabel(label.id)} />
-                            </Badge>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {projectLabels.length === 0 && projectId && (
-                      <p className="text-xs text-muted-foreground">이 프로젝트에는 아직 라벨이 없습니다.</p>
-                    )}
-                  </div>
-                )}
-
-                {/* 에러 메시지 */}
-                {error && (
-                  <div className="flex items-center text-sm text-destructive gap-1">
-                    <AlertCircle className="h-4 w-4" />
-                    <span>{error}</span>
-                  </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start" onClick={handlePopoverClick}>
+                    <Calendar
+                      mode="single"
+                      selected={dueDate}
+                      onSelect={handleDateSelect}
+                      initialFocus
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {dueDate && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1 h-auto p-0 text-xs text-muted-foreground"
+                    onClick={handleDateClear}
+                    disabled={isLoading}
+                  >
+                    <X className="mr-1 h-3 w-3" />
+                    마감일 제거
+                  </Button>
                 )}
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
-                  취소
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? '생성 중...' : '태스크 생성'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
+
+              {/* 라벨 선택 */}
+              {projectId && (
+                <div className="grid gap-2">
+                  <Label htmlFor="labels">라벨 (선택)</Label>
+                  <Popover open={labelsOpen} onOpenChange={setLabelsOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="labels"
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        disabled={isLoading || projectLabels.length === 0}
+                      >
+                        라벨 선택
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start" onClick={handlePopoverClick}>
+                      <Command>
+                        <CommandInput placeholder="라벨 검색..." />
+                        <CommandEmpty>라벨을 찾을 수 없습니다.</CommandEmpty>
+                        <CommandGroup>
+                          {projectLabels.map((label) => (
+                            <CommandItem key={label.id} value={label.name} onSelect={() => toggleLabel(label.id)}>
+                              <div className="flex items-center gap-2 w-full">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: label.color }} />
+                                <span>{label.name}</span>
+                                {selectedLabels.includes(label.id) && <Check className="ml-auto h-4 w-4" />}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* 선택된 라벨 표시 */}
+                  {selectedLabels.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {selectedLabels.map((labelId) => {
+                        const label = projectLabels.find((l) => l.id === labelId);
+                        if (!label) return null;
+                        return (
+                          <Badge
+                            key={label.id}
+                            className="flex items-center gap-1 px-2 py-1"
+                            style={{
+                              backgroundColor: `${label.color}20`,
+                              borderColor: label.color,
+                              color: label.color,
+                            }}
+                            variant="outline"
+                          >
+                            {label.name}
+                            <X
+                              className="h-3 w-3 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeLabel(label.id);
+                              }}
+                            />
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {projectLabels.length === 0 && projectId && (
+                    <p className="text-xs text-muted-foreground">이 프로젝트에는 아직 라벨이 없습니다.</p>
+                  )}
+                </div>
+              )}
+
+              {/* 에러 메시지 */}
+              {error && (
+                <div className="flex items-center text-sm text-destructive gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{error}</span>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+                취소
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? '생성 중...' : '태스크 생성'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
