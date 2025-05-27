@@ -1,11 +1,21 @@
+/* src/app/(dashboard)/dashboard/tasks/task-list.tsx */
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -50,40 +60,113 @@ interface Task {
   };
 }
 
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export default function TaskList() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 10,
+    totalCount: 0,
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      setLoading(true);
-      setError(null);
+  const currentPage = parseInt(searchParams.get('page') || '1');
 
-      try {
-        // 현재 URL의 쿼리 파라미터를 API 요청에 사용
-        const queryString = searchParams.toString();
-        const response = await fetch(`/api/task?${queryString}`);
+  const fetchTasks = async () => {
+    setLoading(true);
+    setError(null);
 
-        if (!response.ok) {
-          throw new Error('태스크를 불러오는 중 오류가 발생했습니다.');
-        }
+    try {
+      const queryString = searchParams.toString();
+      const response = await fetch(`/api/task?${queryString}`);
 
-        const data = await response.json();
-        setTasks(data);
-      } catch (err) {
-        console.error('Error fetching tasks:', err);
-        setError(err instanceof Error ? err.message : '태스크를 불러오는 중 오류가 발생했습니다.');
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error('태스크를 불러오는 중 오류가 발생했습니다.');
       }
-    };
 
+      const data = await response.json();
+      setTasks(data.tasks);
+      setPagination(data.pagination);
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+      setError(err instanceof Error ? err.message : '태스크를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTasks();
   }, [searchParams]);
 
-  // 상태에 따른 아이콘 및 색상
+  // 태스크 생성 이벤트 리스너
+  useEffect(() => {
+    const handleTaskCreated = () => {
+      fetchTasks();
+    };
+
+    window.addEventListener('taskCreated', handleTaskCreated);
+    return () => {
+      window.removeEventListener('taskCreated', handleTaskCreated);
+    };
+  }, [searchParams]);
+
+  // 페이지 변경 핸들러
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', page.toString());
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  // 페이지 번호 생성 로직
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+
+    if (pagination.totalPages <= maxVisible) {
+      for (let i = 1; i <= pagination.totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(pagination.totalPages);
+      } else if (currentPage >= pagination.totalPages - 2) {
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = pagination.totalPages - 3; i <= pagination.totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('ellipsis');
+        pages.push(currentPage - 1);
+        pages.push(currentPage);
+        pages.push(currentPage + 1);
+        pages.push('ellipsis');
+        pages.push(pagination.totalPages);
+      }
+    }
+
+    return pages;
+  };
+
+  // 상태에 따른 아이콘
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'done':
@@ -95,7 +178,7 @@ export default function TaskList() {
     }
   };
 
-  // 우선순위에 따른 아이콘 및 색상
+  // 우선순위 배지
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'high':
@@ -142,7 +225,7 @@ export default function TaskList() {
     );
   }
 
-  if (tasks.length === 0) {
+  if (tasks.length === 0 && currentPage === 1) {
     return (
       <div className="flex flex-col items-center justify-center h-64 border rounded-lg bg-muted/20">
         <h3 className="text-xl font-medium mb-2">태스크가 없습니다</h3>
@@ -152,82 +235,131 @@ export default function TaskList() {
   }
 
   return (
-    <div className="space-y-4">
-      {tasks.map((task) => (
-        <Link href={`/dashboard/tasks/${task.id}`} key={task.id}>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(task.status)}
-                    <h3 className="font-medium line-clamp-1">{task.title}</h3>
-                  </div>
+    <div className="space-y-6">
+      {/* 태스크 리스트 */}
+      <div className="space-y-4">
+        {tasks.map((task) => (
+          <Link href={`/dashboard/tasks/${task.id}`} key={task.id} className="block">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(task.status)}
+                      <h3 className="font-medium line-clamp-1">{task.title}</h3>
+                    </div>
 
-                  <p className="text-sm text-muted-foreground line-clamp-1">{task.description || '설명 없음'}</p>
+                    <p className="text-sm text-muted-foreground line-clamp-1">{task.description || '설명 없음'}</p>
 
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <Badge variant="outline" className="bg-blue-50">
-                      {task.project.name}
-                    </Badge>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <Badge variant="outline" className="bg-blue-50">
+                        {task.project.name}
+                      </Badge>
 
-                    {getPriorityBadge(task.priority)}
+                      {getPriorityBadge(task.priority)}
 
-                    {task.labels.length > 0 &&
-                      task.labels.map(({ label }) => (
-                        <div
-                          key={label.id}
-                          className="px-2 py-0.5 rounded-full text-xs border"
-                          style={{
-                            backgroundColor: `${label.color}20`,
-                            borderColor: label.color,
-                            color: label.color,
-                          }}
-                        >
-                          {label.name}
+                      {task.labels.length > 0 &&
+                        task.labels.map(({ label }) => (
+                          <div
+                            key={label.id}
+                            className="px-2 py-0.5 rounded-full text-xs border"
+                            style={{
+                              backgroundColor: `${label.color}20`,
+                              borderColor: label.color,
+                              color: label.color,
+                            }}
+                          >
+                            {label.name}
+                          </div>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      {task.dueDate && (
+                        <div className="flex items-center gap-1">
+                          <CalendarIcon className="h-3 w-3" />
+                          <span>
+                            {new Date(task.dueDate) < new Date() ? (
+                              <span className="text-red-500">
+                                {formatDistanceToNow(new Date(task.dueDate), { addSuffix: true, locale: ko })}
+                                (지남)
+                              </span>
+                            ) : (
+                              formatDistanceToNow(new Date(task.dueDate), { addSuffix: true, locale: ko })
+                            )}
+                          </span>
                         </div>
-                      ))}
+                      )}
+
+                      {task._count.comments > 0 && (
+                        <div className="flex items-center gap-1">
+                          <MessageSquareIcon className="h-3 w-3" />
+                          <span>{task._count.comments}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    {task.dueDate && (
-                      <div className="flex items-center gap-1">
-                        <CalendarIcon className="h-3 w-3" />
-                        <span>
-                          {new Date(task.dueDate) < new Date() ? (
-                            <span className="text-red-500">
-                              {formatDistanceToNow(new Date(task.dueDate), { addSuffix: true, locale: ko })}
-                              (지남)
-                            </span>
-                          ) : (
-                            formatDistanceToNow(new Date(task.dueDate), { addSuffix: true, locale: ko })
-                          )}
-                        </span>
-                      </div>
-                    )}
-
-                    {task._count.comments > 0 && (
-                      <div className="flex items-center gap-1">
-                        <MessageSquareIcon className="h-3 w-3" />
-                        <span>{task._count.comments}</span>
-                      </div>
-                    )}
-                  </div>
+                  {task.assignee && (
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={task.assignee.image || ''} alt={task.assignee.name || ''} />
+                      <AvatarFallback>
+                        {task.assignee.name?.charAt(0) || task.assignee.email?.charAt(0) || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                 </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
 
-                {task.assignee && (
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={task.assignee.image || ''} alt={task.assignee.name || ''} />
-                    <AvatarFallback>
-                      {task.assignee.name?.charAt(0) || task.assignee.email?.charAt(0) || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      ))}
+      {/* 페이지네이션 */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            총 {pagination.totalCount}개 중 {(currentPage - 1) * pagination.limit + 1}-
+            {Math.min(currentPage * pagination.limit, pagination.totalCount)}개 표시
+          </p>
+
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+
+              {generatePageNumbers().map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === 'ellipsis' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      onClick={() => handlePageChange(page as number)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className={
+                    currentPage === pagination.totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }

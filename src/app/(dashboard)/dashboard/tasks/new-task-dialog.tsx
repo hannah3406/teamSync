@@ -1,3 +1,4 @@
+/* src/app/(dashboard)/dashboard/tasks/new-task-dialog.tsx */
 'use client';
 
 import { useState } from 'react';
@@ -18,9 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { X, CalendarIcon, AlertCircle, Check } from 'lucide-react';
+import { X, CalendarIcon, AlertCircle, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -56,34 +56,29 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
   const [priority, setPriority] = useState('medium');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
-  // 프로젝트 생성 안내 대화상자 상태
   const [showProjectPrompt, setShowProjectPrompt] = useState(false);
 
   const [projectLabels, setProjectLabels] = useState<Label[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 프로젝트가 없는지 확인
   const hasProjects = projects.length > 0;
 
   const handleOpenDialog = () => {
     if (hasProjects) {
       setOpen(true);
     } else {
-      // 프로젝트 생성 안내 대화상자 열기
       setShowProjectPrompt(true);
     }
   };
 
-  // 프로젝트 생성 페이지로 이동
   const navigateToCreateProject = () => {
     router.push('/dashboard/projects');
   };
 
-  // 프로젝트가 변경되면 해당 프로젝트의 라벨로 필터링
   const handleProjectChange = (value: string) => {
     setProjectId(value);
-    setSelectedLabels([]); // 프로젝트 변경 시 선택된 라벨 초기화
+    setSelectedLabels([]);
 
     if (value) {
       const filteredLabels = labels.filter((label) => label.projectId === value);
@@ -93,7 +88,6 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
     }
   };
 
-  // 라벨 토글
   const toggleLabel = (labelId: string) => {
     if (selectedLabels.includes(labelId)) {
       setSelectedLabels(selectedLabels.filter((id) => id !== labelId));
@@ -102,28 +96,15 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
     }
   };
 
-  // 선택된 라벨 제거
   const removeLabel = (labelId: string) => {
     setSelectedLabels(selectedLabels.filter((id) => id !== labelId));
   };
 
-  // 날짜 선택 핸들러 수정 - 이벤트 버블링 방지
   const handleDateSelect = (date: Date | undefined) => {
     setDueDate(date);
-    setCalendarOpen(false); // 날짜 선택 후 달력 닫기
+    setCalendarOpen(false);
   };
 
-  // Popover 내부 클릭 시 이벤트 버블링 방지
-  const handlePopoverClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
-  // 날짜 제거 핸들러
-  const handleDateClear = () => {
-    setDueDate(undefined);
-  };
-
-  // 폼 제출
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -163,10 +144,15 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
         throw new Error(data.error || '태스크 생성 중 오류가 발생했습니다.');
       }
 
-      // 성공 처리
+      // 태스크 생성 성공
       setOpen(false);
       resetForm();
-      router.refresh(); // 페이지 새로고침하여 새 태스크 표시
+
+      // 커스텀 이벤트 발생시켜 태스크 리스트 갱신
+      window.dispatchEvent(new Event('taskCreated'));
+
+      // router.refresh()는 제거하거나 유지 (선택사항)
+      // router.refresh(); // 다른 서버 컴포넌트 갱신이 필요한 경우 유지
     } catch (error) {
       console.error('Task creation error:', error);
       setError(error instanceof Error ? error.message : '태스크 생성 중 오류가 발생했습니다.');
@@ -175,7 +161,6 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
     }
   };
 
-  // 폼 초기화
   const resetForm = () => {
     setTitle('');
     setDescription('');
@@ -188,14 +173,20 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
     setError(null);
   };
 
+  // 선택되지 않은 라벨 목록
+  const availableLabels = projectLabels.filter((label) => !selectedLabels.includes(label.id));
+
   return (
     <>
-      {/* 메인 태스크 생성 대화상자 */}
       <Dialog
         open={open}
         onOpenChange={(newOpen) => {
           setOpen(newOpen);
-          if (!newOpen) resetForm();
+          if (!newOpen) {
+            resetForm();
+            setCalendarOpen(false);
+            setLabelsOpen(false);
+          }
         }}
       >
         <DialogTrigger
@@ -208,7 +199,7 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
           {children}
         </DialogTrigger>
 
-        <DialogContent className="sm:max-w-[550px]" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[550px]">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>새 태스크 생성</DialogTitle>
@@ -296,13 +287,14 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
                 </div>
               </div>
 
-              {/* 마감일 선택 - 수정된 부분 */}
+              {/* 마감일 선택 - 개선된 부분 */}
               <div className="grid gap-2">
                 <Label htmlFor="dueDate">마감일 (선택)</Label>
-                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen} modal={true}>
                   <PopoverTrigger asChild>
                     <Button
                       id="dueDate"
+                      type="button"
                       variant="outline"
                       className={cn('w-full justify-start text-left font-normal', !dueDate && 'text-muted-foreground')}
                       disabled={isLoading}
@@ -311,7 +303,15 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
                       {dueDate ? format(dueDate, 'PPP', { locale: ko }) : '마감일 선택'}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start" onClick={handlePopoverClick}>
+                  <PopoverContent
+                    className="w-auto p-0"
+                    align="start"
+                    sideOffset={4}
+                    style={{
+                      zIndex: 9999,
+                      position: 'relative',
+                    }}
+                  >
                     <Calendar
                       mode="single"
                       selected={dueDate}
@@ -321,89 +321,82 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
                     />
                   </PopoverContent>
                 </Popover>
-                {dueDate && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="mt-1 h-auto p-0 text-xs text-muted-foreground"
-                    onClick={handleDateClear}
-                    disabled={isLoading}
-                  >
-                    <X className="mr-1 h-3 w-3" />
-                    마감일 제거
-                  </Button>
-                )}
               </div>
 
-              {/* 라벨 선택 */}
-              {projectId && (
+              {/* 라벨 선택 - 개선된 부분 */}
+              {projectId && projectLabels.length > 0 && (
                 <div className="grid gap-2">
                   <Label htmlFor="labels">라벨 (선택)</Label>
-                  <Popover open={labelsOpen} onOpenChange={setLabelsOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="labels"
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                        disabled={isLoading || projectLabels.length === 0}
-                      >
-                        라벨 선택
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start" onClick={handlePopoverClick}>
-                      <Command>
-                        <CommandInput placeholder="라벨 검색..." />
-                        <CommandEmpty>라벨을 찾을 수 없습니다.</CommandEmpty>
-                        <CommandGroup>
-                          {projectLabels.map((label) => (
-                            <CommandItem key={label.id} value={label.name} onSelect={() => toggleLabel(label.id)}>
-                              <div className="flex items-center gap-2 w-full">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: label.color }} />
-                                <span>{label.name}</span>
-                                {selectedLabels.includes(label.id) && <Check className="ml-auto h-4 w-4" />}
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* 선택된 라벨 표시 */}
-                  {selectedLabels.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedLabels.map((labelId) => {
-                        const label = projectLabels.find((l) => l.id === labelId);
-                        if (!label) return null;
-                        return (
-                          <Badge
-                            key={label.id}
-                            className="flex items-center gap-1 px-2 py-1"
-                            style={{
-                              backgroundColor: `${label.color}20`,
-                              borderColor: label.color,
-                              color: label.color,
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* 선택된 라벨들 */}
+                    {selectedLabels.map((labelId) => {
+                      const label = projectLabels.find((l) => l.id === labelId);
+                      if (!label) return null;
+                      return (
+                        <Badge
+                          key={label.id}
+                          className="flex items-center gap-1 px-2 py-1"
+                          style={{
+                            backgroundColor: `${label.color}20`,
+                            borderColor: label.color,
+                            color: label.color,
+                          }}
+                          variant="outline"
+                        >
+                          {label.name}
+                          <X
+                            className="h-3 w-3 cursor-pointer hover:opacity-70"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeLabel(label.id);
                             }}
-                            variant="outline"
-                          >
-                            {label.name}
-                            <X
-                              className="h-3 w-3 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeLabel(label.id);
-                              }}
-                            />
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  )}
+                          />
+                        </Badge>
+                      );
+                    })}
 
-                  {projectLabels.length === 0 && projectId && (
-                    <p className="text-xs text-muted-foreground">이 프로젝트에는 아직 라벨이 없습니다.</p>
-                  )}
+                    {/* 추가 버튼 - 선택 가능한 라벨이 있을 때만 표시 */}
+                    {availableLabels.length > 0 && (
+                      <Popover open={labelsOpen} onOpenChange={setLabelsOpen} modal={true}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-muted-foreground border-dashed"
+                            disabled={isLoading}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            추가
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-full p-2"
+                          align="start"
+                          style={{
+                            zIndex: 9999,
+                            position: 'relative',
+                          }}
+                        >
+                          <div className="grid gap-1">
+                            {availableLabels.map((label) => (
+                              <div
+                                key={label.id}
+                                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer hover:bg-accent"
+                                onClick={() => {
+                                  toggleLabel(label.id);
+                                  setLabelsOpen(false);
+                                }}
+                              >
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: label.color }} />
+                                <span className="flex-1">{label.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
                 </div>
               )}
 

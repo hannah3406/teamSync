@@ -84,7 +84,7 @@ export default function TaskFilters({ projects }: TaskFiltersProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center">
         {/* 프로젝트 필터 */}
-        <div className="mr-2 mb-2 w-[200px]">
+        <div className="mr-2 mb-2 ">
           <Select value={filters.projectId} onValueChange={(value) => handleFilterChange('projectId', value)}>
             <SelectTrigger>
               <SelectValue placeholder="모든 프로젝트" />
@@ -101,7 +101,7 @@ export default function TaskFilters({ projects }: TaskFiltersProps) {
         </div>
 
         {/* 상태 필터 */}
-        <div className="mr-2 mb-2 w-[150px]">
+        <div className="mr-2 mb-2 ">
           <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
             <SelectTrigger>
               <SelectValue placeholder="모든 상태" />
@@ -116,7 +116,7 @@ export default function TaskFilters({ projects }: TaskFiltersProps) {
         </div>
 
         {/* 우선순위 필터 */}
-        <div className="mr-2 mb-2 w-[150px]">
+        <div className="mr-2 mb-2">
           <Select value={filters.priority} onValueChange={(value) => handleFilterChange('priority', value)}>
             <SelectTrigger>
               <SelectValue placeholder="모든 우선순위" />
@@ -131,7 +131,7 @@ export default function TaskFilters({ projects }: TaskFiltersProps) {
         </div>
 
         {/* 담당자 필터 */}
-        <div className="mr-2 mb-2 w-[150px]">
+        <div className="mr-2 mb-2">
           <Select value={filters.assigneeId} onValueChange={(value) => handleFilterChange('assigneeId', value)}>
             <SelectTrigger>
               <SelectValue placeholder="모든 담당자" />
@@ -145,7 +145,7 @@ export default function TaskFilters({ projects }: TaskFiltersProps) {
         </div>
 
         {/* 정렬 기준 */}
-        <div className="mr-2 mb-2 w-[150px]">
+        <div className="mr-2 mb-2 ">
           <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange('sortBy', value)}>
             <SelectTrigger>
               <SelectValue placeholder="정렬 기준" />
@@ -160,7 +160,7 @@ export default function TaskFilters({ projects }: TaskFiltersProps) {
         </div>
 
         {/* 정렬 순서 */}
-        <div className="mr-2 mb-2 w-[150px]">
+        <div className="mr-2 mb-2 ">
           <Select value={filters.sortOrder} onValueChange={(value) => handleFilterChange('sortOrder', value)}>
             <SelectTrigger>
               <SelectValue placeholder="정렬 순서" />

@@ -22,6 +22,11 @@ export async function GET(request: Request) {
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
+    // 페이지네이션 옵션
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
+
     // 필터 조건 구성
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
@@ -50,7 +55,10 @@ export async function GET(request: Request) {
     const orderBy: any = {};
     orderBy[sortBy] = sortOrder;
 
-    // 태스크 조회
+    // 전체 개수 조회
+    const totalCount = await prisma.task.count({ where });
+
+    // 태스크 조회 (페이지네이션 적용)
     const tasks = await prisma.task.findMany({
       where,
       include: {
@@ -80,9 +88,19 @@ export async function GET(request: Request) {
         },
       },
       orderBy,
+      skip,
+      take: limit,
     });
 
-    return NextResponse.json(tasks);
+    return NextResponse.json({
+      tasks,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });

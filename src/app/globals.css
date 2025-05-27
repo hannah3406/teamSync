@@ -87,3 +87,12 @@
   --rdp-outline-offset: 2px; /* 아웃라인 오프셋 */
   margin: 0;
 }
+/* Popover z-index 수정 */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+/* Dialog 내부 Popover를 위한 스타일 */
+[role='dialog'] [data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
