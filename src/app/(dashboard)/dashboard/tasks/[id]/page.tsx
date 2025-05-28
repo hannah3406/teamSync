@@ -11,7 +11,6 @@ import {
   CheckCircle2Icon,
   CircleIcon,
   ClockIcon,
-  MessageSquareIcon,
   PencilIcon,
   TrashIcon,
   UserIcon,
@@ -23,7 +22,7 @@ import { ko } from 'date-fns/locale';
 import TaskStatusSelect from '../task-status-select';
 import TaskEditDialog from '../task-edit-dialog';
 import TaskDeleteDialog from '../task-delete-dialog';
-import TaskComments from '../task-comments';
+import TaskCommentSection from '../task-comment-section';
 
 interface TaskPageProps {
   params: {
@@ -152,17 +151,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
           </Card>
 
           {/* 댓글 */}
-          <Card>
-            <CardHeader>
-              <h3 className="text-lg font-medium flex items-center gap-2">
-                <MessageSquareIcon className="h-5 w-5" />
-                댓글 ({task._count.comments})
-              </h3>
-            </CardHeader>
-            <CardContent>
-              <TaskComments taskId={task.id} initialComments={task.comments} />
-            </CardContent>
-          </Card>
+          <TaskCommentSection taskId={task.id} initialComments={task.comments} initialCount={task._count.comments} />
         </div>
 
         {/* 사이드바 */}

@@ -96,3 +96,111 @@
 [role='dialog'] [data-radix-popper-content-wrapper] {
   z-index: 9999 !important;
 }
+
+/* 댓글 입력 폼 스타일 */
+.comment-input-collapsed {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background-color: hsl(var(--background));
+  cursor: text;
+  transition: all 0.2s ease;
+}
+
+.comment-input-collapsed:hover {
+  border-color: hsl(var(--ring));
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+.comment-placeholder {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* 확장된 폼 - 외부 래퍼는 border 없음 */
+.comment-form-expanded {
+  animation: expandForm 0.2s ease-out;
+}
+
+@keyframes expandForm {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* textarea 래퍼 - 축소 상태와 동일한 스타일 */
+.comment-textarea-wrapper {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background-color: hsl(var(--background));
+  transition: border-color 0.2s;
+  margin-bottom: 12px;
+}
+
+.comment-textarea-wrapper:focus-within {
+  border-color: hsl(var(--ring));
+}
+
+/* textarea 자체는 border 제거 */
+.comment-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 16px;
+  border: none;
+  border-radius: 0.5rem;
+  background-color: transparent;
+  font-size: 0.875rem;
+  resize: none;
+  outline: none;
+}
+
+.comment-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.comment-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 16px;
+  margin-top: -8px;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  color: hsl(var(--destructive));
+}
+
+.comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* 댓글 아이템 애니메이션 */
+.comment-item {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 다크모드 지원 */
+.dark .comment-input-collapsed:hover {
+  background-color: hsl(var(--muted) / 0.3);
+}
