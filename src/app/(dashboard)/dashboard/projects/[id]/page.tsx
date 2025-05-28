@@ -18,6 +18,7 @@ import {
   CheckCircle2Icon,
   CircleIcon,
   TargetIcon,
+  TagIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -26,6 +27,7 @@ import ProjectEditDialog from '../project-edit-dialog';
 import ProjectDeleteDialog from '../project-delete-dialog';
 import ProjectTaskList from '../project-task-list';
 import ProjectMembersList from '../project-members-list';
+import LabelManagementDialog from '../label-management-dialog';
 
 interface ProjectPageProps {
   params: {
@@ -113,6 +115,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       {/* 헤더 */}
+      {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{project.name}</h1>
@@ -120,6 +123,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
+            <LabelManagementDialog projectId={project.id} projectName={project.name}>
+              <Button variant="outline" size="sm">
+                <TagIcon className="h-4 w-4 mr-2" />
+                라벨 관리
+              </Button>
+            </LabelManagementDialog>
             <ProjectEditDialog project={project}>
               <Button variant="outline" size="sm">
                 <PencilIcon className="h-4 w-4 mr-2" />

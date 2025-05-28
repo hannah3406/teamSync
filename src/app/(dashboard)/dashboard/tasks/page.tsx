@@ -45,25 +45,6 @@ export default async function TasksPage() {
     },
   });
 
-  // 라벨 목록 조회 (필터링 시 필요)
-  const labels = await prisma.label.findMany({
-    where: {
-      project: {
-        members: {
-          some: {
-            userId: session.user.id,
-          },
-        },
-      },
-    },
-    select: {
-      id: true,
-      name: true,
-      color: true,
-      projectId: true,
-    },
-  });
-
   // 프로젝트 유무에 따른 UI 변화
   const hasProjects = projects.length > 0;
 
@@ -71,7 +52,7 @@ export default async function TasksPage() {
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">태스크</h2>
-        <NewTaskDialog projects={projects} labels={labels}>
+        <NewTaskDialog projects={projects}>
           <Button>
             <PlusIcon className="mr-2 h-4 w-4" />새 태스크
           </Button>
@@ -80,7 +61,7 @@ export default async function TasksPage() {
 
       {hasProjects ? (
         <>
-          <TaskFilters projects={projects} labels={labels} />
+          <TaskFilters projects={projects} />
           <TaskList />
         </>
       ) : (

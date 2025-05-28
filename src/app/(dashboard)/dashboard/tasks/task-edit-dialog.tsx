@@ -1,3 +1,4 @@
+// task-edit-dialog.tsx 수정
 'use client';
 
 import { useState } from 'react';
@@ -22,6 +23,7 @@ import { CalendarIcon, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import LabelSelector from './label-selector';
 
 interface TaskEditDialogProps {
   children: React.ReactNode;
@@ -32,6 +34,14 @@ interface TaskEditDialogProps {
     status: string;
     priority: string;
     dueDate: string | Date | null;
+    projectId?: string;
+    labels?: Array<{
+      label: {
+        id: string;
+        name: string;
+        color: string;
+      };
+    }>;
   };
 }
 
@@ -45,6 +55,7 @@ export default function TaskEditDialog({ children, task }: TaskEditDialogProps) 
   const [status, setStatus] = useState(task.status);
   const [priority, setPriority] = useState(task.priority);
   const [dueDate, setDueDate] = useState<Date | undefined>(task.dueDate ? new Date(task.dueDate) : undefined);
+  const [selectedLabels, setSelectedLabels] = useState<string[]>(task.labels?.map((tl) => tl.label.id) || []);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +88,7 @@ export default function TaskEditDialog({ children, task }: TaskEditDialogProps) 
           status,
           priority,
           dueDate: dueDate ? dueDate.toISOString() : null,
+          labelIds: selectedLabels,
         }),
       });
 
@@ -102,6 +114,7 @@ export default function TaskEditDialog({ children, task }: TaskEditDialogProps) 
     setStatus(task.status);
     setPriority(task.priority);
     setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
+    setSelectedLabels(task.labels?.map((tl) => tl.label.id) || []);
     setError(null);
   };
 
@@ -218,6 +231,20 @@ export default function TaskEditDialog({ children, task }: TaskEditDialogProps) 
                 </PopoverContent>
               </Popover>
             </div>
+
+            {/* 라벨 선택 - 새로 추가 */}
+            {task.projectId && (
+              <div className="grid gap-2">
+                <Label htmlFor="labels">라벨</Label>
+                <LabelSelector
+                  projectId={task.projectId}
+                  selectedLabels={selectedLabels}
+                  onChange={setSelectedLabels}
+                  disabled={isLoading}
+                  placeholder="라벨을 선택하세요"
+                />
+              </div>
+            )}
 
             {/* 에러 메시지 */}
             {error && (

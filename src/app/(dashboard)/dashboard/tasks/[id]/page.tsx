@@ -12,7 +12,6 @@ import {
   CircleIcon,
   ClockIcon,
   PencilIcon,
-  TrashIcon,
   UserIcon,
   TagIcon,
   FolderIcon,
@@ -21,7 +20,6 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import TaskStatusSelect from '../task-status-select';
 import TaskEditDialog from '../task-edit-dialog';
-import TaskDeleteDialog from '../task-delete-dialog';
 import TaskCommentSection from '../task-comment-section';
 
 interface TaskPageProps {
@@ -122,18 +120,18 @@ export default async function TaskPage({ params }: TaskPageProps) {
           <h1 className="text-2xl font-bold">{task.title}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <TaskEditDialog task={task}>
+          <TaskEditDialog
+            task={{
+              ...task,
+              projectId: task.project.id,
+              labels: task.labels,
+            }}
+          >
             <Button variant="outline" size="sm">
               <PencilIcon className="h-4 w-4 mr-2" />
               수정
             </Button>
           </TaskEditDialog>
-          <TaskDeleteDialog taskId={task.id} taskTitle={task.title}>
-            <Button variant="outline" size="sm">
-              <TrashIcon className="h-4 w-4 mr-2" />
-              삭제
-            </Button>
-          </TaskDeleteDialog>
         </div>
       </div>
 

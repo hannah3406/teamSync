@@ -19,11 +19,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { X, CalendarIcon, AlertCircle, Plus } from 'lucide-react';
+import { CalendarIcon, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import LabelSelector from './label-selector';
 
 type Project = {
   id: string;
@@ -40,14 +40,12 @@ type Label = {
 interface NewTaskDialogProps {
   children: React.ReactNode;
   projects: Project[];
-  labels: Label[];
 }
 
-export default function NewTaskDialog({ children, projects, labels }: NewTaskDialogProps) {
+export default function NewTaskDialog({ children, projects }: NewTaskDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [labelsOpen, setLabelsOpen] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -58,7 +56,6 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   const [showProjectPrompt, setShowProjectPrompt] = useState(false);
 
-  const [projectLabels, setProjectLabels] = useState<Label[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,25 +76,6 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
   const handleProjectChange = (value: string) => {
     setProjectId(value);
     setSelectedLabels([]);
-
-    if (value) {
-      const filteredLabels = labels.filter((label) => label.projectId === value);
-      setProjectLabels(filteredLabels);
-    } else {
-      setProjectLabels([]);
-    }
-  };
-
-  const toggleLabel = (labelId: string) => {
-    if (selectedLabels.includes(labelId)) {
-      setSelectedLabels(selectedLabels.filter((id) => id !== labelId));
-    } else {
-      setSelectedLabels([...selectedLabels, labelId]);
-    }
-  };
-
-  const removeLabel = (labelId: string) => {
-    setSelectedLabels(selectedLabels.filter((id) => id !== labelId));
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -169,12 +147,8 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
     setPriority('medium');
     setDueDate(undefined);
     setSelectedLabels([]);
-    setProjectLabels([]);
     setError(null);
   };
-
-  // 선택되지 않은 라벨 목록
-  const availableLabels = projectLabels.filter((label) => !selectedLabels.includes(label.id));
 
   return (
     <>
@@ -185,7 +159,6 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
           if (!newOpen) {
             resetForm();
             setCalendarOpen(false);
-            setLabelsOpen(false);
           }
         }}
       >
@@ -323,83 +296,19 @@ export default function NewTaskDialog({ children, projects, labels }: NewTaskDia
                 </Popover>
               </div>
 
-              {/* 라벨 선택 - 개선된 부분 */}
-              {projectId && projectLabels.length > 0 && (
+              {/* 라벨 선택 - 개선된 버전 */}
+              {projectId && (
                 <div className="grid gap-2">
                   <Label htmlFor="labels">라벨 (선택)</Label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* 선택된 라벨들 */}
-                    {selectedLabels.map((labelId) => {
-                      const label = projectLabels.find((l) => l.id === labelId);
-                      if (!label) return null;
-                      return (
-                        <Badge
-                          key={label.id}
-                          className="flex items-center gap-1 px-2 py-1"
-                          style={{
-                            backgroundColor: `${label.color}20`,
-                            borderColor: label.color,
-                            color: label.color,
-                          }}
-                          variant="outline"
-                        >
-                          {label.name}
-                          <X
-                            className="h-3 w-3 cursor-pointer hover:opacity-70"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeLabel(label.id);
-                            }}
-                          />
-                        </Badge>
-                      );
-                    })}
-
-                    {/* 추가 버튼 - 선택 가능한 라벨이 있을 때만 표시 */}
-                    {availableLabels.length > 0 && (
-                      <Popover open={labelsOpen} onOpenChange={setLabelsOpen} modal={true}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-muted-foreground border-dashed"
-                            disabled={isLoading}
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            추가
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-full p-2"
-                          align="start"
-                          style={{
-                            zIndex: 9999,
-                            position: 'relative',
-                          }}
-                        >
-                          <div className="grid gap-1">
-                            {availableLabels.map((label) => (
-                              <div
-                                key={label.id}
-                                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer hover:bg-accent"
-                                onClick={() => {
-                                  toggleLabel(label.id);
-                                  setLabelsOpen(false);
-                                }}
-                              >
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: label.color }} />
-                                <span className="flex-1">{label.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  </div>
+                  <LabelSelector
+                    projectId={projectId}
+                    selectedLabels={selectedLabels}
+                    onChange={setSelectedLabels}
+                    disabled={isLoading}
+                    placeholder="라벨을 선택하세요"
+                  />
                 </div>
               )}
-
               {/* 에러 메시지 */}
               {error && (
                 <div className="flex items-center text-sm text-destructive gap-1">

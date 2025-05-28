@@ -12,16 +12,8 @@ type Project = {
   name: string;
 };
 
-type Label = {
-  id: string;
-  name: string;
-  color: string;
-  projectId: string;
-};
-
 interface TaskFiltersProps {
   projects: Project[];
-  labels: Label[];
 }
 
 export default function TaskFilters({ projects }: TaskFiltersProps) {
