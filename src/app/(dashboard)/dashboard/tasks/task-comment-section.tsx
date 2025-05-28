@@ -22,9 +22,15 @@ interface TaskCommentSectionProps {
   taskId: string;
   initialComments: Comment[];
   initialCount: number;
+  currentUserId?: string;
 }
 
-export default function TaskCommentSection({ taskId, initialComments, initialCount }: TaskCommentSectionProps) {
+export default function TaskCommentSection({
+  taskId,
+  initialComments,
+  initialCount,
+  currentUserId,
+}: TaskCommentSectionProps) {
   const [commentCount, setCommentCount] = useState(initialCount);
 
   const handleCommentCountChange = (delta: number) => {
@@ -43,6 +49,7 @@ export default function TaskCommentSection({ taskId, initialComments, initialCou
         <TaskComments
           taskId={taskId}
           initialComments={initialComments}
+          currentUserId={currentUserId}
           onCommentCountChange={handleCommentCountChange}
         />
       </CardContent>

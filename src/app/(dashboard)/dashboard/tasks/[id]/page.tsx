@@ -151,7 +151,12 @@ export default async function TaskPage({ params }: TaskPageProps) {
           </Card>
 
           {/* 댓글 */}
-          <TaskCommentSection taskId={task.id} initialComments={task.comments} initialCount={task._count.comments} />
+          <TaskCommentSection
+            taskId={task.id}
+            initialComments={task.comments}
+            initialCount={task._count.comments}
+            currentUserId={session.user.id}
+          />
         </div>
 
         {/* 사이드바 */}
