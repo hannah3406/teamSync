@@ -3,6 +3,7 @@ import { Navbar, NavbarBrand, NavbarItems } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
 import DashboardNav from '@/components/dashboard/dashboard-nav';
 import { UserNav } from '@/components/dashboard/user-nav';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -26,7 +27,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="flex flex-col flex-1 overflow-hidden">
         <Navbar>
           <div></div>
-          <NavbarItems>{user && <UserNav user={user} />}</NavbarItems>
+          <NavbarItems>
+            {/* 알림 벨 아이콘 추가 */}
+            <NotificationBell />
+            {user && <UserNav user={user} />}
+          </NavbarItems>
         </Navbar>
 
         <main className="flex-1 overflow-auto">{children}</main>

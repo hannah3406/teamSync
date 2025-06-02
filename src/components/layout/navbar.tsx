@@ -33,7 +33,7 @@ interface NavbarItemsProps {
 }
 
 export function NavbarItems({ children }: NavbarItemsProps) {
-  return <div className="flex items-center gap-4">{children}</div>;
+  return <div className="flex items-center gap-2">{children}</div>;
 }
 
 interface NavbarItemProps {
