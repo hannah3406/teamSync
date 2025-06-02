@@ -48,3 +48,7 @@ next-env.d.ts
 # merge
 merge.md
 merge.sh
+
+# add content
+todoList.md
+purpose.md
