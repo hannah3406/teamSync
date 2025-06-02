@@ -1,19 +1,16 @@
-import { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { OverviewStats } from "@/components/dashboard/overview-stats";
-import { MyTasksWidget } from "@/components/dashboard/my-tasks-widget";
-import { RecentActivities } from "@/components/dashboard/recent-activities";
-import { UpcomingDeadlines } from "@/components/dashboard/upcoming-deadlines";
+import { auth } from "@/lib/auth";
 
-export const metadata: Metadata = {
-  title: "대시보드 | TeamSync",
-  description: "TeamSync 대시보드",
-};
-
-async function getDashboardData(userId: string) {
+export async function GET() {
   try {
+    const session = await auth();
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+
     // 사용자가 속한 프로젝트 ID들 조회
     const userProjects = await prisma.project.findMany({
       where: {
@@ -96,12 +93,11 @@ async function getDashboardData(userId: string) {
         take: 10,
       }),
 
-      // 마감 임박 태스크 (7일 이내) - dueDate가 null이 아닌 것만
+      // 마감 임박 태스크 (7일 이내)
       prisma.task.findMany({
         where: {
           OR: [{ assigneeId: userId }, { projectId: { in: projectIds } }],
           dueDate: {
-            not: null, // null이 아닌 것만
             gte: new Date(),
             lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           },
@@ -172,7 +168,7 @@ async function getDashboardData(userId: string) {
     const completionRate =
       totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    return {
+    const response = {
       overview: {
         totalProjects,
         totalTasks,
@@ -183,55 +179,13 @@ async function getDashboardData(userId: string) {
       recentActivities,
       upcomingDeadlines,
     };
+
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("Error fetching dashboard data:", error);
-    throw error;
-  }
-}
-
-export default async function DashboardPage() {
-  const session = await auth();
-
-  if (!session || !session.user?.id) {
-    redirect("/login");
-  }
-
-  try {
-    const data = await getDashboardData(session.user.id);
-
-    return (
-      <div className="flex-1 space-y-6 p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">대시보드</h2>
-        </div>
-
-        {/* 전체 통계 */}
-        <OverviewStats data={data.overview} />
-
-        {/* 상세 위젯들 */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <MyTasksWidget data={data.myTasks} />
-          <RecentActivities activities={data.recentActivities} />
-          <UpcomingDeadlines
-            tasks={data.upcomingDeadlines.filter((task) => task.dueDate)}
-          />
-        </div>
-      </div>
-    );
-  } catch (error) {
-    console.error("Dashboard error:", error);
-
-    return (
-      <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">대시보드</h2>
-        </div>
-        <div className="text-center py-10">
-          <p className="text-muted-foreground">
-            데이터를 불러오는 중 오류가 발생했습니다.
-          </p>
-        </div>
-      </div>
+    console.error("Error fetching dashboard stats:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch dashboard stats" },
+      { status: 500 }
     );
   }
 }
